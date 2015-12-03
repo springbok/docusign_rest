@@ -6,7 +6,8 @@ module DocusignRest
   class Client
     # Define the same set of accessors as the DocusignRest module
     attr_accessor *Configuration::VALID_CONFIG_KEYS
-    attr_accessor :docusign_authentication_headers, :acct_id
+    attr_accessor :docusign_authentication_headers
+    attr_accessor :acct_id
     attr_accessor :previous_call_log
 
     def initialize(options={})
