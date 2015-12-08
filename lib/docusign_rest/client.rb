@@ -23,12 +23,14 @@ module DocusignRest
       # Set up the DocuSign Authentication headers with the values passed from
       # our config block
       if access_token.nil?
+        authentication = {
+          'Username' => username,
+          'Password' => password,
+          'IntegratorKey' => integrator_key
+        }
+        authentication['SendOnBehalfOf'] = options[:send_on_behalf_of] if options.include?(:send_on_behalf_of)
         @docusign_authentication_headers = {
-          'X-DocuSign-Authentication' => {
-            'Username' => username,
-            'Password' => password,
-            'IntegratorKey' => integrator_key
-          }.to_json
+          'X-DocuSign-Authentication' => authentication.to_json
         }
       else
         @docusign_authentication_headers = {
@@ -785,7 +787,7 @@ module DocusignRest
     #   status         - Sent, created, or voided
     def create_envelope_from_composite_template(options={})
       content_type = { 'Content-Type' => 'application/json' }
-      content_type.merge(options[:headers]) if options[:headers]
+      content_type.merge!(options[:headers]) if options[:headers]
 
       post_body = {
         status:             options[:status],
