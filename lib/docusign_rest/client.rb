@@ -514,14 +514,14 @@ module DocusignRest
     # and sets up the composite template
     #
     # Returns an array of server template hashes
-    def get_composite_template(server_template_ids, signers)
+    def get_composite_template(options={})
       composite_array = []
       index = 0
-      server_template_ids.each  do |template_id|
+      options[:server_template_ids].each  do |template_id|
         server_template_hash = Hash[:sequence, index += 1, \
           :templateId, template_id]
         templates_hash = Hash[:serverTemplates, [server_template_hash], \
-          :inlineTemplates,  get_inline_signers(signers, index += 1)]
+          :inlineTemplates,  get_inline_signers(index += 1, options)]
         composite_array << templates_hash
       end
       composite_array
@@ -532,9 +532,12 @@ module DocusignRest
     # and sets up the inline template
     #
     # Returns an array of signers
-    def get_inline_signers(signers, sequence)
-      signers_array = get_signers(signers)
-      template_hash = Hash[:sequence, sequence, :recipients, { signers: signers_array }]
+    def get_inline_signers(sequence, options={})
+      signers_array = get_signers(options[:signers])
+      template_hash = Hash[
+        :sequence, sequence,
+        :recipients, { signers: signers_array }
+      ]
       [template_hash]
     end
 
@@ -613,6 +616,7 @@ module DocusignRest
           signers: get_signers(options[:signers])
         },
         status: "#{options[:status]}",
+        brandId:   "#{options[:brand_id] if options[:brand_id]}",
         customFields: options[:custom_fields]
       }.to_json
 
@@ -668,6 +672,7 @@ module DocusignRest
         recipients: {
           signers: get_signers(options[:signers], template: true)
         },
+        brandId:   "#{options[:brand_id] if options[:brand_id]}",
         envelopeTemplateDefinition: {
           description: options[:description],
           name: options[:name],
@@ -738,6 +743,7 @@ module DocusignRest
         templateId:         options[:template_id],
         eventNotification:  get_event_notification(options[:event_notification]),
         templateRoles:      get_template_roles(options[:signers]),
+        brandId:            "#{options[:brand_id] if options[:brand_id]}",
         customFields:       options[:custom_fields]
       }.to_json
 
@@ -783,8 +789,10 @@ module DocusignRest
 
       post_body = {
         status:             options[:status],
-        compositeTemplates: get_composite_template(options[:server_template_ids], options[:signers])
-      }.to_json
+        compositeTemplates: get_composite_template(options)
+      }
+      post_body[:brandId] = options[:brand_id] if options[:brand_id]
+      post_body = post_body.to_json
 
       uri = build_uri("/accounts/#{acct_id}/envelopes")
 
