@@ -744,7 +744,7 @@ module DocusignRest
         templateId:         options[:template_id],
         eventNotification:  get_event_notification(options[:event_notification]),
         templateRoles:      get_template_roles(options[:signers]),
-        brandId:            "#{options[:brand_id] if options[:brand_id]}",
+        brandId:            options[:brand_id],
         customFields:       options[:custom_fields]
       }.to_json
 
@@ -792,10 +792,11 @@ module DocusignRest
 
       post_body = {
         status:             options[:status],
-        compositeTemplates: get_composite_template(options)
-      }
-      post_body[:brandId] = options[:brand_id] if options[:brand_id]
-      post_body = post_body.to_json
+        emailBlurb:         options[:email][:body],
+        emailSubject:       options[:email][:subject],
+        compositeTemplates: get_composite_template(options),
+        brandId:            options[:brand_id]
+      }.to_json
 
       uri = build_uri("/accounts/#{acct_id}/envelopes")
 
