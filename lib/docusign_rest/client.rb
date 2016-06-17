@@ -313,6 +313,8 @@ module DocusignRest
     #                      currently work.
     # sign_here_tab_text - Instead of 'sign here'. Note: doesn't work
     # tab_label          - TODO: figure out what this is
+    # id_check_configuration_name - contains either 'ID Check $' for an RSA ID Check or 'SMS Auth $'
+    # sender_provided_numbers  - contains senderProvidedNumbers – Array with a list of phone numbers the recipient may use for SMS text authentication.
     def get_signers(signers, options={})
       doc_signers = []
 
@@ -338,6 +340,15 @@ module DocusignRest
 
         if signer[:email_notification]
           doc_signer[:emailNotification] = signer[:email_notification]
+        end
+
+        if signer[:id_check_configuration_name]
+          doc_signer[:iDCheckConfigurationName] = signer[:id_check_configuration_name]
+        end
+
+        if signer[:sender_provided_numbers]
+          doc_signer[:requireIdLookup] = true
+          doc_signer[:smsAuthentication] = {:senderProvidedNumbers => signer[:sender_provided_numbers]}
         end
 
         if signer[:embedded]
@@ -519,10 +530,11 @@ module DocusignRest
       composite_array = []
       index = 0
       options[:server_templates].each  do |template|
-        server_template_hash = Hash[:sequence, index += 1, \
+        index += 1
+        server_template_hash = Hash[:sequence, index, \
           :templateId, template[:template_id]]
         templates_hash = Hash[:serverTemplates, [server_template_hash], \
-          :inlineTemplates,  get_inline_signers(index += 1, template[:signers])]
+          :inlineTemplates,  get_inline_signers(index, template[:signers])]
         composite_array << templates_hash
       end
       composite_array
