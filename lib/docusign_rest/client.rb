@@ -528,13 +528,12 @@ module DocusignRest
     # Returns an array of server template hashes
     def get_composite_template(options={})
       composite_array = []
-      index = 0
+      index = 1
       options[:server_templates].each  do |template|
-        index += 1
         server_template_hash = Hash[:sequence, index, \
           :templateId, template[:template_id]]
         templates_hash = Hash[:serverTemplates, [server_template_hash], \
-          :inlineTemplates,  get_inline_signers(index, template[:signers])]
+          :inlineTemplates,  get_inline_signers(index+1, template[:signers])]
         composite_array << templates_hash
       end
       composite_array
