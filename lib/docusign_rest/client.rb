@@ -135,13 +135,13 @@ module DocusignRest
     # Examples:
     #
     #   client = DocusignRest::Client.new
-    #   response = client.get_token('someone@example.com', 'p@ssw0rd01')
+    #   response = client.get_token(integrator_key, 'someone@example.com', 'p@ssw0rd01')
     #
     # Returns:
     #   access_token - Access token information
     #   scope - This should always be "api"
     #   token_type - This should always be "bearer"
-    def get_token(account_id, email, password)
+    def get_token(integrator_key, email, password)
       content_type = { 'Content-Type' => 'application/x-www-form-urlencoded', 'Accept' => 'application/json' }
       uri = build_uri('/oauth2/token')
 
@@ -529,12 +529,21 @@ module DocusignRest
     def get_composite_template(options={})
       composite_array = []
       index = 1
-      options[:server_templates].each  do |template|
-        server_template_hash = Hash[:sequence, index, \
-          :templateId, template[:template_id]]
-        templates_hash = Hash[:serverTemplates, [server_template_hash], \
-          :inlineTemplates,  get_inline_signers(index+1, template[:signers])]
+      if options[:server_templates] && !options[:server_templates].blank?
+        options[:server_templates].each  do |template|
+          server_template_hash = Hash[:sequence, index,
+            :templateId, template[:template_id]]
+          templates_hash = Hash[:serverTemplates, [server_template_hash],
+            :inlineTemplates,  get_inline_signers(index, template[:signers], nil)]
+          composite_array << templates_hash
+          index += 1
+        end
+      end
+      if options[:documents] && !options[:documents].blank?
+        templates_hash = Hash[
+          :inlineTemplates,  get_inline_signers(index, options[:document_signers], options[:documents])]
         composite_array << templates_hash
+        index += 1
       end
       composite_array
     end
@@ -544,12 +553,24 @@ module DocusignRest
     # and sets up the inline template
     #
     # Returns an array of signers
-    def get_inline_signers(sequence, signers)
-      signers_array = get_signers(signers)
+    def get_inline_signers(sequence, signers, documents)
+      signers_array = []
+      signers_array = get_signers(signers) if !signers.blank?
       template_hash = Hash[
         :sequence, sequence,
         :recipients, { signers: signers_array }
       ]
+      if documents
+        index = 1
+        template_hash[:documents] = []
+        documents.each do |document|
+          document_hash = Hash[:documentId, index,
+            :name, document[:name], :fileExtension, document[:file_extension],
+            :documentBase64, ActiveSupport::Base64.strict_encode64(open(document[:path]) { |io| io.read })]
+          template_hash[:documents] << document_hash
+          index += 1
+        end
+     end
       [template_hash]
     end
 
@@ -571,6 +592,8 @@ module DocusignRest
       # headers={} - The fully merged, final request headers
       # boundary   - Optional: you can give the request a custom boundary
       #
+      headers = headers.dup.merge(parts: {post_body: {'Content-Type' => 'application/json'}})
+
       request = Net::HTTP::Post::Multipart.new(
         uri.request_uri,
         { post_body: post_body }.merge(file_params),
@@ -798,25 +821,40 @@ module DocusignRest
     #   statusDateTime - The date/time the envelope was created
     #   status         - Sent, created, or voided
     def create_envelope_from_composite_template(options={})
-      content_type = { 'Content-Type' => 'application/json' }
-      content_type.merge!(options[:headers]) if options[:headers]
+      file_params = {}
+      # If we want to replace a template background document
+      # see code on github but **** do some examples via REST API explorer first ***
+      # as there may be a better way to do it. For now we don't need it.
+      #if options[:document]
+      #  ios = create_file_ios(options[:document])
+      #  file_params = create_file_params(ios)
+      #end
 
       post_body = {
         status:             options[:status],
-        emailBlurb:         options[:email][:body],
-        emailSubject:       options[:email][:subject],
+        emailBlurb:         "#{options[:email][:body] if options[:email]}",
+        emailSubject:       "#{options[:email][:subject] if options[:email]}",
         compositeTemplates: get_composite_template(options),
-        brandId:            options[:brand_id]
+        brandId:            "#{options[:brand_id] if options[:brand_id]}"
       }.to_json
 
       uri = build_uri("/accounts/#{acct_id}/envelopes")
 
       http = initialize_net_http_ssl(uri)
 
+      # As we are supplying document content via base64 inline we don't
+      # need to use a multipart setup, if we need to comment next 4 lines
+      # and uncomment multipart call
+      content_type = { 'Content-Type' => 'application/json' }
+      content_type.merge!(options[:headers]) if options[:headers]
       request = Net::HTTP::Post.new(uri.request_uri, headers(content_type))
       request.body = post_body
-
+      # Uncomment if multpart required, but we should be able to supply
+      # all docs inline via base64 var
+      #request = initialize_net_http_multipart_post_request(
+      #  uri, post_body, file_params, headers(options[:headers]))
       response = http.request(request)
+
       generate_log(request, response, uri)
       JSON.parse(response.body)
     end
