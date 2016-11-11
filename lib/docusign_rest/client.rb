@@ -529,21 +529,21 @@ module DocusignRest
     def get_composite_template(options={})
       composite_array = []
       index = 1
-      if options[:server_templates] && !options[:server_templates].blank?
-        options[:server_templates].each  do |template|
-          server_template_hash = Hash[:sequence, index,
-            :templateId, template[:template_id]]
-          templates_hash = Hash[:serverTemplates, [server_template_hash],
-            :inlineTemplates,  get_inline_signers(index, template[:signers], nil)]
-          composite_array << templates_hash
-          index += 1
-        end
-      end
       if options[:documents] && !options[:documents].blank?
         templates_hash = Hash[
           :inlineTemplates,  get_inline_signers(index, options[:document_signers], options[:documents])]
         composite_array << templates_hash
         index += 1
+      end
+      if options[:server_templates] && !options[:server_templates].blank?
+        options[:server_templates].each  do |template|
+          server_template_hash = Hash[:sequence, template[:document_index] || index,
+            :templateId, template[:template_id]]
+          templates_hash = Hash[:serverTemplates, [server_template_hash],
+            :inlineTemplates,  get_inline_signers(template[:document_index] || index, template[:signers], nil)]
+          composite_array << templates_hash
+          index += 1
+        end
       end
       composite_array
     end
@@ -564,7 +564,7 @@ module DocusignRest
         index = 1
         template_hash[:documents] = []
         documents.each do |document|
-          document_hash = Hash[:documentId, index,
+          document_hash = Hash[:documentId, document[:document_index] || index,
             :name, document[:name], :fileExtension, document[:file_extension],
             :documentBase64, ActiveSupport::Base64.strict_encode64(open(document[:path]) { |io| io.read })]
           template_hash[:documents] << document_hash
