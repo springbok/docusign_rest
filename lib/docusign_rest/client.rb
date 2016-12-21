@@ -331,7 +331,7 @@ module DocusignRest
           note:                                  '',
           phoneAuthentication:                   nil,
           recipientAttachment:                   nil,
-          recipientId:                           "#{index + 1}",
+          recipientId:                           signer[:recipient_id] || "#{index + 1}",
           requireIdLookup:                       false,
           roleName:                              signer[:role_name],
           routingOrder:                          index + 1,
@@ -365,7 +365,8 @@ module DocusignRest
         doc_signer[:defaultRecipient] = false
         doc_signer[:signatureInfo]    = nil
         doc_signer[:tabs]             = {
-          approveTabs:          nil,
+          approveTabs:          get_tabs(signer[:aprrove_tabs], options, index),
+          viewTabs:             get_tabs(signer[:view_tabs], options, index),
           checkboxTabs:         get_tabs(signer[:checkbox_tabs], options, index),
           companyTabs:          nil,
           dateSignedTabs:       get_tabs(signer[:date_signed_tabs], options, index),
@@ -530,17 +531,34 @@ module DocusignRest
       composite_array = []
       index = 1
       if options[:documents] && !options[:documents].blank?
-        templates_hash = Hash[
-          :inlineTemplates,  get_inline_signers(index, options[:document_signers], options[:documents])]
-        composite_array << templates_hash
-        index += 1
+        options[:documents].each do |document|
+          document_hash = Hash[
+            :documentId, document[:document_index] || index,
+            :name, document[:name],
+            :fileExtension, document[:file_extension],
+            :documentBase64, ActiveSupport::Base64.strict_encode64(open(document[:path]) { |io| io.read }),
+            :includeInDownload, document[:include_in_download] || true]
+          document_hash[:signerMustAcknowledge] = document[:signer_must_acknowledge] if document.include?(:signer_must_acknowledge)
+          signers = Marshal.load(Marshal.dump(options[:document_signers]))
+          signers.each do |s|
+            s.merge!(document[:document_tabs]) if document[:document_tabs] && document[:document_tabs].size > 0
+            s[:recipient_id] = index
+          end
+          signers = get_inline_signers(index, signers)
+          templates_hash = Hash[
+            :inlineTemplates, signers,
+            :document, document_hash]
+          composite_array << templates_hash
+          index += 1
+        end
       end
       if options[:server_templates] && !options[:server_templates].blank?
         options[:server_templates].each  do |template|
           server_template_hash = Hash[:sequence, template[:document_index] || index,
             :templateId, template[:template_id]]
+          template[:signers].each { |s| s[:recipient_id] = index }
           templates_hash = Hash[:serverTemplates, [server_template_hash],
-            :inlineTemplates,  get_inline_signers(template[:document_index] || index, template[:signers], nil)]
+            :inlineTemplates,  get_inline_signers(template[:document_index] || index, template[:signers])]
           composite_array << templates_hash
           index += 1
         end
@@ -553,24 +571,13 @@ module DocusignRest
     # and sets up the inline template
     #
     # Returns an array of signers
-    def get_inline_signers(sequence, signers, documents)
+    def get_inline_signers(sequence, signers)
       signers_array = []
       signers_array = get_signers(signers) if !signers.blank?
       template_hash = Hash[
         :sequence, sequence,
         :recipients, { signers: signers_array }
       ]
-      if documents
-        index = 1
-        template_hash[:documents] = []
-        documents.each do |document|
-          document_hash = Hash[:documentId, document[:document_index] || index,
-            :name, document[:name], :fileExtension, document[:file_extension],
-            :documentBase64, ActiveSupport::Base64.strict_encode64(open(document[:path]) { |io| io.read })]
-          template_hash[:documents] << document_hash
-          index += 1
-        end
-     end
       [template_hash]
     end
 
