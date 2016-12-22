@@ -538,10 +538,14 @@ module DocusignRest
             :fileExtension, document[:file_extension],
             :documentBase64, ActiveSupport::Base64.strict_encode64(open(document[:path]) { |io| io.read }),
             :includeInDownload, document[:include_in_download] || true]
-          document_hash[:signerMustAcknowledge] = document[:signer_must_acknowledge] if document.include?(:signer_must_acknowledge)
+          document_hash[:signerMustAcknowledge] = document[:signer_must_acknowledge] if document.key?(:signer_must_acknowledge)
+          document_hash[:display] = document[:display] if document.key?(:display)
           signers = Marshal.load(Marshal.dump(options[:document_signers]))
           signers.each do |s|
             s.merge!(document[:document_tabs]) if document[:document_tabs] && document[:document_tabs].size > 0
+            # Need this to make sure each recipient is treated as a different one even though they may not be. This
+            # allows us to add different tabs for each so that different tabs can be applied to different documents.
+            # We need this to allow us to include supplementary docs that may have a View tab associated with it.
             s[:recipient_id] = index
           end
           signers = get_inline_signers(index, signers)
