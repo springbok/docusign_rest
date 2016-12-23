@@ -433,8 +433,10 @@ module DocusignRest
         tab_hash[:optional]   = tab[:optional] || false
         tab_hash[:tabLabel]   = tab[:label] || 'Signature 1'
         tab_hash[:width]      = tab[:width] if tab[:width]
-        tab_hash[:height]     = tab[:height] if tab[:width]
+        tab_hash[:height]     = tab[:height] || '0' if tab[:width]
         tab_hash[:value]      = tab[:value] if tab[:value]
+        tab_hash[:fontColor]  = tab[:font_color] if tab[:font_color]
+        tab_hash[:fontSize]   = tab[:font_size] if tab[:font_size]
 
         tab_hash[:locked]     = tab[:locked] || false
 
@@ -533,13 +535,14 @@ module DocusignRest
       if options[:documents] && !options[:documents].blank?
         options[:documents].each do |document|
           document_hash = Hash[
-            :documentId, document[:document_index] || index,
+            :documentId, document[:document_id] || index,
             :name, document[:name],
             :fileExtension, document[:file_extension],
             :documentBase64, ActiveSupport::Base64.strict_encode64(open(document[:path]) { |io| io.read }),
             :includeInDownload, document[:include_in_download] || true]
           document_hash[:signerMustAcknowledge] = document[:signer_must_acknowledge] if document.key?(:signer_must_acknowledge)
           document_hash[:display] = document[:display] if document.key?(:display)
+          document_hash[:documentFields] = document[:document_fields] if document.key?(:document_fields)
           signers = Marshal.load(Marshal.dump(options[:document_signers]))
           signers.each do |s|
             s.merge!(document[:document_tabs]) if document[:document_tabs] && document[:document_tabs].size > 0
@@ -994,6 +997,24 @@ module DocusignRest
       content_type.merge(options[:headers]) if options[:headers]
 
       uri = build_uri("/accounts/#{acct_id}/envelopes/#{options[:envelope_id]}")
+
+      http = initialize_net_http_ssl(uri)
+      request = Net::HTTP::Get.new(uri.request_uri, headers(content_type))
+      response = http.request(request)
+      generate_log(request, response, uri)
+      JSON.parse(response.body)
+    end
+
+
+    # Public retrieves custom document fields for a document
+    #
+    # envelope_id      - ID of the envelope the doc belongs to
+    # document_id      - ID of the document
+    def get_document_status(options={})
+      content_type = { 'Content-Type' => 'application/json' }
+      content_type.merge(options[:headers]) if options[:headers]
+
+      uri = build_uri("/accounts/#{acct_id}/envelopes/#{options[:envelope_id]}/documents/#{options[:document_id]}/fields")
 
       http = initialize_net_http_ssl(uri)
       request = Net::HTTP::Get.new(uri.request_uri, headers(content_type))
