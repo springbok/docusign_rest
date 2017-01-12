@@ -583,7 +583,7 @@ module DocusignRest
       signers_array = get_signers(signers) if !signers.blank?
       template_hash = Hash[
         :sequence, sequence,
-        :recipients, { "#{recipient_type}": signers_array }
+        :recipients, { "#{recipient_type}" => signers_array }
       ]
       [template_hash]
     end
