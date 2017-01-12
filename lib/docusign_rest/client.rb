@@ -551,7 +551,7 @@ module DocusignRest
             # We need this to allow us to include supplementary docs that may have a View tab associated with it.
             s[:recipient_id] = index
           end
-          signers = get_inline_signers(index, signers)
+          signers = get_inline_signers(index, signers, document[:recipient_type] || 'signers')
           templates_hash = Hash[
             :inlineTemplates, signers,
             :document, document_hash]
@@ -578,12 +578,12 @@ module DocusignRest
     # and sets up the inline template
     #
     # Returns an array of signers
-    def get_inline_signers(sequence, signers)
+    def get_inline_signers(sequence, signers, recipient_type='signers')
       signers_array = []
       signers_array = get_signers(signers) if !signers.blank?
       template_hash = Hash[
         :sequence, sequence,
-        :recipients, { signers: signers_array }
+        :recipients, { "#{recipient_type}": signers_array }
       ]
       [template_hash]
     end
