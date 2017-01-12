@@ -538,7 +538,7 @@ module DocusignRest
             :documentId, document[:document_id] || index,
             :name, document[:name],
             :fileExtension, document[:file_extension],
-            :documentBase64, ActiveSupport::Base64.strict_encode64(open(document[:path]) { |io| io.read }),
+            :documentBase64, Base64.strict_encode64(open(document[:path]) { |io| io.read }),
             :includeInDownload, document[:include_in_download] || true]
           document_hash[:signerMustAcknowledge] = document[:signer_must_acknowledge] if document.key?(:signer_must_acknowledge)
           document_hash[:display] = document[:display] if document.key?(:display)
