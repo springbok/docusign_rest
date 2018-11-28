@@ -565,7 +565,7 @@ module DocusignRest
             :templateId, template[:template_id]]
           template[:signers].each { |s| s[:recipient_id] = index }
           templates_hash = Hash[:serverTemplates, [server_template_hash],
-            :inlineTemplates,  get_inline_signers(template[:document_index] || index, template[:signers])]
+            :inlineTemplates,  get_inline_signers(template[:document_index] || index, template[:signers], template[:recipient_type] || 'signers')]
           composite_array << templates_hash
           index += 1
         end
