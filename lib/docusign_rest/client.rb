@@ -442,6 +442,8 @@ module DocusignRest
 
         tab_hash[:list_items] = tab[:list_items] if tab[:list_items]
 
+        tab_hash[:selected] = tab[:selected] if tab.key?(:selected)
+
         tab_hash[:groupName] = tab[:group_name] if tab.key?(:group_name)
         tab_hash[:radios] = get_tabs(tab[:radios], options, index) if tab.key?(:radios)
 
