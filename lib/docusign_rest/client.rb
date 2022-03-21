@@ -338,6 +338,10 @@ module DocusignRest
           socialAuthentications:                 nil
         }
 
+        if signer[:additional_notifications]
+          doc_signer[:additionalNotifications] = signer[:additional_notifications]
+        end
+
         if signer[:email_notification]
           doc_signer[:emailNotification] = signer[:email_notification]
         end
@@ -990,6 +994,20 @@ module DocusignRest
       JSON.parse(response.body)
     end
 
+    def get_template_recipients(options={})
+      content_type = { 'Content-Type' => 'application/json' }
+      content_type.merge(options[:headers]) if options[:headers]
+
+      include_tabs = options[:include_tabs] || false
+      include_extended = options[:include_extended] || false
+      uri = build_uri("/accounts/#{acct_id}/templates/#{options[:template_id]}/recipients?include_tabs=#{include_tabs}&include_extended=#{include_extended}")
+
+      http = initialize_net_http_ssl(uri)
+      request = Net::HTTP::Get.new(uri.request_uri, headers(content_type))
+      response = http.request(request)
+      generate_log(request, response, uri)
+      JSON.parse(response.body)
+    end
 
     # Public retrieves the envelope status
     #
