@@ -22,7 +22,19 @@ module DocusignRest
 
       # Set up the DocuSign Authentication headers with the values passed from
       # our config block
-      if access_token.nil?
+      if self.auth_method == :oauth
+        raise "A session record needs to be provided when using oauth" if self.session.blank?
+        raise "The RSA private key file needs to be specified for oauth" if self.ca_file.blank?
+
+        # Get values from session if they exist,  if expired or session token blank return false
+        # if false get a new token
+
+        # The base URI is returned to us when retrieving the users details
+        self.endpoint = self.session[:ds_base_path] || self.endpoint
+        @docusign_authentication_headers = {
+          'Authorization' => "Bearer #{access_token}"
+        }
+      elsif self.auth_method == :password
         authentication = {
           'Username' => username,
           'Password' => password,
@@ -32,7 +44,7 @@ module DocusignRest
         @docusign_authentication_headers = {
           'X-DocuSign-Authentication' => authentication.to_json
         }
-      else
+      elsif !access_token.nil?
         @docusign_authentication_headers = {
           'Authorization' => "Bearer #{access_token}"
         }
@@ -45,6 +57,28 @@ module DocusignRest
 
       #initialize the log cache
       @previous_call_log = []
+    end
+
+    def store_data(token, user_info, account)
+      session[:ds_access_token] = token.access_token
+      session[:ds_expires_at] = token.expires_in.to_i.seconds.from_now.to_i
+      session[:ds_user_name] = user_info.name
+      session[:ds_account_id] = account.account_id
+      session[:ds_base_path] = account.base_uri
+      session[:ds_account_name] = account.account_name
+    end
+
+    def get_account(accounts, target_account_id)
+      if target_account_id.present?
+        return accounts.find { |acct| acct.account_id == target_account_id }
+        raise "The user does not have access to account #{target_account_id}"
+      else
+        accounts.find(&:is_default)
+      end
+    end
+
+    def docusign_rsa_private_key_file
+      File.join(Rails.root, 'config', 'docusign_private_key.txt')
     end
 
 
