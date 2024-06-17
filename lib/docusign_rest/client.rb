@@ -108,7 +108,7 @@ module DocusignRest
         "scope"=> scopes
       }
 
-      puts("-----JWT--> request_jwt_user_token claim: #{claim}")
+      Rails.logger.info("-----JWT--> request_jwt_user_token claim: #{claim}")
   
       private_key = if self.rsa_key_file.include?("-----BEGIN RSA PRIVATE KEY-----")
                       self.rsa_key_file
@@ -118,9 +118,9 @@ module DocusignRest
   
       private_key_bytes = OpenSSL::PKey::RSA.new private_key
       token = JWT.encode claim, private_key_bytes, 'RS256'
-      puts("-----JWT--> request_jwt_user_token token: #{token}")
+      Rails.logger.info("-----JWT--> request_jwt_user_token token: #{token}")
       uri = build_auth_url('/oauth/token', {})
-      puts("-----JWT--> request_jwt_user_token uri: #{uri}")
+      Rails.logger.info("-----JWT--> request_jwt_user_token uri: #{uri}")
       content_type = { 'Content-Type' => 'application/x-www-form-urlencoded', 'Accept' => 'application/json' }
       request = Net::HTTP::Post.new(uri.request_uri, content_type)
       request.body = "grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=#{token}"
@@ -129,21 +129,21 @@ module DocusignRest
       response = http.request(request)
       generate_log(request, response, uri)
       token = JSON.parse(response.body)
-      puts("-----JWT--> request_jwt_user_token json: #{token}")
+      Rails.logger.info("-----JWT--> request_jwt_user_token json: #{token}")
       if !token.has_key?('access_token')
         raise "JWT token request failed: #{json}"
       end
       # Get user info
       user_info_response = get_user_info(token)
-      puts("-----JWT--> request_jwt_user_token user_info_response: #{user_info_response}")
+      Rails.logger.info("-----JWT--> request_jwt_user_token user_info_response: #{user_info_response}")
       if !user_info_response.has_key?('accounts')
         raise "The user does not have access to any accounts or call to /oauth/userinfo failed #{user_info_response}"
       end
       accounts = user_info_response["accounts"]
       account = get_account(accounts, self.account_id)
-      puts("-----JWT--> request_jwt_user_token account: #{account}")
+      Rails.logger.info("-----JWT--> request_jwt_user_token account: #{account}")
       store_data(token, user_info_response, account)
-      #puts("-----JWT--> Received token for impersonated user which will expire in: #{token.expires_in.to_i.seconds / 1.hour} hour at: #{Time.at(token.expires_in.to_i.seconds.from_now)}")
+      #Rails.logger.info("-----JWT--> Received token for impersonated user which will expire in: #{token.expires_in.to_i.seconds / 1.hour} hour at: #{Time.at(token.expires_in.to_i.seconds.from_now)}")
     end
 
     def get_user_info(token)
@@ -300,7 +300,7 @@ module DocusignRest
     #
     #   client = DocusignRest::Client.new
     #   response = client.login_information
-    #   puts response.body
+    #   Rails.logger.info response.body
     #
     # Returns:
     #   accountId - For the username, password, and integrator_key specified
