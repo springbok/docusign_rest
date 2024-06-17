@@ -143,7 +143,7 @@ module DocusignRest
       account = get_account(accounts, self.account_id)
       puts("-----JWT--> request_jwt_user_token account: #{account}")
       store_data(token, user_info_response, account)
-      puts("-----JWT--> Received token for impersonated user which will expire in: #{token.expires_in.to_i.seconds / 1.hour} hour at: #{Time.at(token.expires_in.to_i.seconds.from_now)}")
+      #puts("-----JWT--> Received token for impersonated user which will expire in: #{token.expires_in.to_i.seconds / 1.hour} hour at: #{Time.at(token.expires_in.to_i.seconds.from_now)}")
     end
 
     def get_user_info(token)
@@ -166,7 +166,7 @@ module DocusignRest
     def store_data(token, user_info, account)
       self.session[:ds_access_token] = token["access_token"]
       self.session[:ds_token_type] = token["token_type"]
-      self.session[:ds_expires_at] = token["expires_in"].to_i.seconds.from_now.to_i
+      self.session[:ds_expires_at] = (Time.now + token["expires_in"].to_i).to_i
       self.session[:ds_user_name] = user_info["name"]
       self.session[:ds_account_id] = account["account_id"]
       self.session[:ds_base_path] = account["base_uri"] + "/restapi"
