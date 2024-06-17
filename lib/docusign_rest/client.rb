@@ -1,3 +1,4 @@
+require 'jwt'
 require 'openssl'
 require 'open-uri'
 
@@ -23,17 +24,12 @@ module DocusignRest
       # Set up the DocuSign Authentication headers with the values passed from
       # our config block
       if self.auth_method == :oauth
-        raise "A session record needs to be provided when using oauth" if self.session.blank?
-        raise "The RSA private key file needs to be specified for oauth" if self.ca_file.blank?
-
-        # Get values from session if they exist,  if expired or session token blank return false
-        # if false get a new token
-
-        # The base URI is returned to us when retrieving the users details
-        self.endpoint = self.session[:ds_base_path] || self.endpoint
-        @docusign_authentication_headers = {
-          'Authorization' => "Bearer #{access_token}"
-        }
+        raise ArgumentError.new("A session record needs to be provided when using oauth") if self.session.empty?
+        raise ArgumentError.new("The RSA private key file needs to be specified for oauth") if self.rsa_key_file.empty?
+        raise ArgumentError.new('Account ID cannot be empty')  if account_id.empty?
+        raise ArgumentError.new('User ID cannot be empty')  if user_id.empty?
+        self.session = session
+        # We check the token when the headers are generated for each request, see headers method
       elsif self.auth_method == :password
         authentication = {
           'Username' => username,
@@ -59,28 +55,133 @@ module DocusignRest
       @previous_call_log = []
     end
 
+    def check_token
+      if !self.session.blank?
+        if !token_ok?
+          request_jwt_user_token
+        end
+        # Get values from session if they exist,  if expired or session token blank return false
+        # if false get a new token
+  
+        # The base URI is returned to us when retrieving the users details
+        self.endpoint = self.session[:ds_base_path] || self.endpoint
+        @docusign_authentication_headers = {
+          'Authorization' => "#{self.session[:ds_token_type]} #{self.session[:ds_access_token]}"
+        }
+      end
+    end
+    
+    def token_ok?(buffer_in_min = 10)
+      token_ok = false
+      if self.session.has_key?(:ds_access_token) && self.session.has_key?(:ds_expires_at)
+        buffer = buffer_in_min * 60
+        expires_at = self.session[:ds_expires_at]
+        remaining_duration = expires_at.nil? ? 0 : expires_at - buffer.seconds.from_now.to_i
+        if expires_at.nil?
+          Rails.logger.info '==> Token expiration is not available: fetching token'
+        elsif remaining_duration.negative?
+          Rails.logger.debug "==> Token is about to expire in #{time_in_words(remaining_duration)} at: #{Time.at(expires_at)}: fetching token"
+        else
+          Rails.logger.debug "==> Token is OK for #{time_in_words(remaining_duration)} at: #{Time.at(expires_at)}"
+          token_ok = true
+        end
+      end
+      token_ok
+    end
+    
+    # Request JWT User Token
+    def request_jwt_user_token(expires_in = 3600)
+      raise ArgumentError.new('account_id cannot be empty')  if self.account_id.empty?
+      raise ArgumentError.new('user_id cannot be empty')  if self.user_id.empty?
+      raise ArgumentError.new('rsa_key_file cannot be empty')  if self.rsa_key_file.empty?
+
+      scopes = self.oauth_scopes
+      scopes = self.scopes.join(' ') if self.oauth_scopes.kind_of?(Array)
+      expires_in = 3600 if expires_in > 3600
+      now = Time.now.to_i
+      claim = {
+        "iss" => self.integrator_key,
+        "sub" => self.user_id,
+        "aud" => self.oauth_base_url,
+        "iat" => now,
+        "exp" => now + expires_in,
+        "scope"=> scopes
+      }
+
+      puts("-----JWT--> request_jwt_user_token claim: #{claim}")
+  
+      private_key = if self.rsa_key_file.include?("-----BEGIN RSA PRIVATE KEY-----")
+                      self.rsa_key_file
+                    else
+                      File.read(self.rsa_key_file)
+                    end
+  
+      private_key_bytes = OpenSSL::PKey::RSA.new private_key
+      token = JWT.encode claim, private_key_bytes, 'RS256'
+      puts("-----JWT--> request_jwt_user_token token: #{token}")
+      uri = build_auth_url('/oauth/token', {})
+      puts("-----JWT--> request_jwt_user_token uri: #{uri}")
+      content_type = { 'Content-Type' => 'application/x-www-form-urlencoded', 'Accept' => 'application/json' }
+      request = Net::HTTP::Post.new(uri.request_uri, content_type)
+      request.body = "grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=#{token}"
+
+      http = initialize_net_http_ssl(uri)
+      response = http.request(request)
+      generate_log(request, response, uri)
+      token = JSON.parse(response.body)
+      puts("-----JWT--> request_jwt_user_token json: #{token}")
+      if !token.has_key?('access_token')
+        raise "JWT token request failed: #{json}"
+      end
+      # Get user info
+      user_info_response = get_user_info(token)
+      puts("-----JWT--> request_jwt_user_token user_info_response: #{user_info_response}")
+      if !user_info_response.has_key?('accounts')
+        raise "The user does not have access to any accounts or call to /oauth/userinfo failed #{user_info_response}"
+      end
+      accounts = user_info_response["accounts"]
+      account = get_account(accounts, self.account_id)
+      puts("-----JWT--> request_jwt_user_token account: #{account}")
+      store_data(token, user_info_response, account)
+      puts("-----JWT--> Received token for impersonated user which will expire in: #{token.expires_in.to_i.seconds / 1.hour} hour at: #{Time.at(token.expires_in.to_i.seconds.from_now)}")
+    end
+
+    def get_user_info(token)
+      uri = build_auth_url('/oauth/userinfo', {})
+      headers = {'Authorization' => "#{token["token_type"]} #{token["access_token"]}"}
+      request = Net::HTTP::Get.new(uri.request_uri, headers)
+      http = initialize_net_http_ssl(uri)
+      response = http.request(request)
+      generate_log(request, response, uri)
+      json = JSON.parse(response.body)
+      json
+    end
+
+    def build_auth_url(path, opts)
+      # Add leading and trailing slashes to path
+      path = "/#{path}".gsub(/\/+/, '/')
+      return URI.parse("https://#{self.oauth_base_url}#{path}")
+    end
+
     def store_data(token, user_info, account)
-      session[:ds_access_token] = token.access_token
-      session[:ds_expires_at] = token.expires_in.to_i.seconds.from_now.to_i
-      session[:ds_user_name] = user_info.name
-      session[:ds_account_id] = account.account_id
-      session[:ds_base_path] = account.base_uri
-      session[:ds_account_name] = account.account_name
+      self.session[:ds_access_token] = token["access_token"]
+      self.session[:ds_token_type] = token["token_type"]
+      self.session[:ds_expires_at] = token["expires_in"].to_i.seconds.from_now.to_i
+      self.session[:ds_user_name] = user_info["name"]
+      self.session[:ds_account_id] = account["account_id"]
+      self.session[:ds_base_path] = account["base_uri"] + "/restapi"
+      self.endpoint = self.session[:ds_base_path]
+      self.session[:ds_account_name] = account["account_name"]
     end
 
     def get_account(accounts, target_account_id)
-      if target_account_id.present?
-        return accounts.find { |acct| acct.account_id == target_account_id }
+      if !target_account_id.empty?
+        return accounts.find { |acct| acct['account_id'] == target_account_id }
         raise "The user does not have access to account #{target_account_id}"
       else
         accounts.find(&:is_default)
       end
     end
-
-    def docusign_rsa_private_key_file
-      File.join(Rails.root, 'config', 'docusign_private_key.txt')
-    end
-
 
     # Internal: sets the default request headers allowing for user overrides
     # via options[:headers] from within other requests. Additionally injects
@@ -106,6 +207,8 @@ module DocusignRest
 
       default.merge!(user_defined_headers) if user_defined_headers
 
+      # For JWT oauth check token and refresh if required
+      check_token if self.auth_method == :oauth
       @docusign_authentication_headers.merge(default)
     end
 

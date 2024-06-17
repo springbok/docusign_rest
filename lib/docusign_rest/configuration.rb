@@ -1,7 +1,9 @@
 module DocusignRest
   module Configuration
     VALID_CONNECTION_KEYS  = [:endpoint, :api_version, :user_agent, :method].freeze
-    VALID_OPTIONS_KEYS     = [:access_token, :username, :password, :integrator_key, :account_id, :format, :ca_file, :session].freeze
+    VALID_OPTIONS_KEYS     = [:access_token, :username, :password, :integrator_key,
+                              :account_id, :format, :ca_file, :session, :user_id,
+                              :auth_method, :oauth_base_url, :oauth_scopes, :rsa_key_file].freeze
     VALID_CONFIG_KEYS      = VALID_CONNECTION_KEYS + VALID_OPTIONS_KEYS
 
     DEFAULT_ENDPOINT       = 'https://demo.docusign.net/restapi'
