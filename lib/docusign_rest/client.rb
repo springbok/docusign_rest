@@ -24,7 +24,7 @@ module DocusignRest
       # Set up the DocuSign Authentication headers with the values passed from
       # our config block
       if self.auth_method == :oauth
-        raise ArgumentError.new("A session record needs to be provided when using oauth") if self.session.empty?
+        raise ArgumentError.new("A session record needs to be provided when using oauth") if self.session.nil?
         raise ArgumentError.new("The RSA private key file needs to be specified for oauth") if self.rsa_key_file.empty?
         raise ArgumentError.new('Account ID cannot be empty')  if account_id.empty?
         raise ArgumentError.new('User ID cannot be empty')  if user_id.empty?
