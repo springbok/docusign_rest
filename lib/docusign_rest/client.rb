@@ -142,9 +142,10 @@ module DocusignRest
       end
       accounts = user_info_response["accounts"]
       account = get_account(accounts, self.account_id)
+      raise "No account found when calling /oauth/userinfo accounts: #{accounts}" if !account
       Rails.logger.info("-----JWT--> request_jwt_user_token account: #{account}")
       store_data(token, user_info_response, account)
-      Rails.logger.info("-----JWT--> Received token for impersonated user which will expire in: #{token.expires_in.to_i.seconds / 1.hour} hour at: #{Time.at(token.expires_in.to_i.seconds.from_now)}")
+      Rails.logger.info("-----JWT--> Received token for impersonated user which will expire in: #{token['expires_in'].to_i.seconds / 1.hour} hour at: #{Time.at(token['expires_in'].to_i.seconds.from_now)}")
     end
 
     def get_user_info(token)
