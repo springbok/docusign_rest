@@ -56,7 +56,7 @@ module DocusignRest
     end
 
     def check_token
-      if !self.session.blank?
+      if !self.session.empty?
         if !token_ok?
           request_jwt_user_token
         end
@@ -76,7 +76,7 @@ module DocusignRest
       if self.session.has_key?(:ds_access_token) && self.session.has_key?(:ds_expires_at)
         buffer = buffer_in_min * 60
         expires_at = self.session[:ds_expires_at]
-        remaining_duration = expires_at.nil? ? 0 : expires_at - buffer.seconds.from_now.to_i
+        remaining_duration = expires_at.nil? ? 0 : expires_at - (Time.now + buffer).to_i
         if expires_at.nil?
           Rails.logger.info '==> Token expiration is not available: fetching token'
         elsif remaining_duration.negative?
@@ -109,13 +109,13 @@ module DocusignRest
       }
 
       Rails.logger.info("-----JWT--> request_jwt_user_token claim: #{claim}")
-  
+
       private_key = if self.rsa_key_file.include?("-----BEGIN RSA PRIVATE KEY-----")
                       self.rsa_key_file
                     else
                       File.read(self.rsa_key_file)
                     end
-  
+
       private_key_bytes = OpenSSL::PKey::RSA.new private_key
       token = JWT.encode claim, private_key_bytes, 'RS256'
       Rails.logger.info("-----JWT--> request_jwt_user_token token: #{token}")
@@ -143,7 +143,7 @@ module DocusignRest
       account = get_account(accounts, self.account_id)
       Rails.logger.info("-----JWT--> request_jwt_user_token account: #{account}")
       store_data(token, user_info_response, account)
-      #Rails.logger.info("-----JWT--> Received token for impersonated user which will expire in: #{token.expires_in.to_i.seconds / 1.hour} hour at: #{Time.at(token.expires_in.to_i.seconds.from_now)}")
+      Rails.logger.info("-----JWT--> Received token for impersonated user which will expire in: #{token.expires_in.to_i.seconds / 1.hour} hour at: #{Time.at(token.expires_in.to_i.seconds.from_now)}")
     end
 
     def get_user_info(token)
@@ -284,7 +284,7 @@ module DocusignRest
 
       request = Net::HTTP::Post.new(uri.request_uri, content_type)
       request.body = "grant_type=password&client_id=#{integrator_key}&username=#{email}&password=#{password}&scope=api"
-      
+
       http = initialize_net_http_ssl(uri)
       response = http.request(request)
       generate_log(request, response, uri)

@@ -15,3 +15,4 @@ end
 session = {ds_access_token: nil}
 api = DocusignRest::Client.new(session: session)
 api.request_jwt_user_token
+api.get_login_information
