@@ -28,6 +28,7 @@ module DocusignRest
         raise ArgumentError.new("The RSA private key file needs to be specified for oauth") if self.rsa_key_file.empty?
         raise ArgumentError.new('Account ID cannot be empty')  if account_id.empty?
         raise ArgumentError.new('User ID cannot be empty')  if user_id.empty?
+        raise ArgumentError.new("Session needs to be a hash") if !self.session.is_a?(Hash)
         self.session = session
         # We check the token when the headers are generated for each request, see headers method
       elsif self.auth_method == :password
