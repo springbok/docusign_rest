@@ -89,6 +89,10 @@ module DocusignRest
       end
       token_ok
     end
+
+    def time_in_words(duration)
+      "#{Object.new.extend(ActionView::Helpers::DateHelper).distance_of_time_in_words(duration)}#{duration.negative? ? ' ago' : ''}"
+    end
     
     # Request JWT User Token
     def request_jwt_user_token(expires_in = 3600)
