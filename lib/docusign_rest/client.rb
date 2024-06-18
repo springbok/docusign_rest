@@ -28,7 +28,7 @@ module DocusignRest
         raise ArgumentError.new("The RSA private key file needs to be specified for oauth") if self.rsa_key_file.empty?
         raise ArgumentError.new('Account ID cannot be empty')  if account_id.empty?
         raise ArgumentError.new('User ID cannot be empty')  if user_id.empty?
-        raise ArgumentError.new("Session needs to be a hash") if !self.session.is_a?(Hash)
+        raise ArgumentError.new("Session needs to be a ActiveRecord::SessionStore::Session") if !self.session.is_a?(ActiveRecord::SessionStore::Session)
         self.session = session
         # We check the token when the headers are generated for each request, see headers method
       elsif self.auth_method == :password
@@ -65,18 +65,18 @@ module DocusignRest
         # if false get a new token
   
         # The base URI is returned to us when retrieving the users details
-        self.endpoint = self.session[:ds_base_path] || self.endpoint
+        self.endpoint = self.session.data[:ds_base_path] || self.endpoint
         @docusign_authentication_headers = {
-          'Authorization' => "#{self.session[:ds_token_type]} #{self.session[:ds_access_token]}"
+          'Authorization' => "#{self.session.data[:ds_token_type]} #{self.session.data[:ds_access_token]}"
         }
       end
     end
     
     def token_ok?(buffer_in_min = 10)
       token_ok = false
-      if self.session.has_key?(:ds_access_token) && self.session.has_key?(:ds_expires_at)
+      if self.session.data.has_key?(:ds_access_token) && self.session.data.has_key?(:ds_expires_at)
         buffer = buffer_in_min * 60
-        expires_at = self.session[:ds_expires_at]
+        expires_at = self.session.data[:ds_expires_at]
         remaining_duration = expires_at.nil? ? 0 : expires_at - (Time.now + buffer).to_i
         if expires_at.nil?
           Rails.logger.info '==> Token expiration is not available: fetching token'
@@ -166,14 +166,15 @@ module DocusignRest
     end
 
     def store_data(token, user_info, account)
-      self.session[:ds_access_token] = token["access_token"]
-      self.session[:ds_token_type] = token["token_type"]
-      self.session[:ds_expires_at] = (Time.now + token["expires_in"].to_i).to_i
-      self.session[:ds_user_name] = user_info["name"]
-      self.session[:ds_account_id] = account["account_id"]
-      self.session[:ds_base_path] = account["base_uri"] + "/restapi"
-      self.endpoint = self.session[:ds_base_path]
-      self.session[:ds_account_name] = account["account_name"]
+      self.session.data[:ds_access_token] = token["access_token"]
+      self.session.data[:ds_token_type] = token["token_type"]
+      self.session.data[:ds_expires_at] = (Time.now + token["expires_in"].to_i).to_i
+      self.session.data[:ds_user_name] = user_info["name"]
+      self.session.data[:ds_account_id] = account["account_id"]
+      self.session.data[:ds_base_path] = account["base_uri"] + "/restapi"
+      self.endpoint = self.session.data[:ds_base_path]
+      self.session.data[:ds_account_name] = account["account_name"]
+      self.session.save
     end
 
     def get_account(accounts, target_account_id)
