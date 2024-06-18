@@ -24,3 +24,6 @@ spike_files/*
 .ruby-gemset
 .ruby-version
 .idea/*
+
+test/docusign_private_key.txt
+test/test_jwt.rb
