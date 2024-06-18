@@ -56,7 +56,7 @@ module DocusignRest
     end
 
     def check_token
-      if !self.session.empty?
+      if !self.session.nil?
         if !token_ok?
           request_jwt_user_token
         end
