@@ -136,7 +136,7 @@ module DocusignRest
       token = JSON.parse(response.body)
       Rails.logger.info("-----JWT--> request_jwt_user_token json: #{token}")
       if !token.has_key?('access_token')
-        raise "JWT token request failed: #{json}"
+        raise "JWT token request failed: #{token}"
       end
       # Get user info
       user_info_response = get_user_info(token)

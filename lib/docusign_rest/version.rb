@@ -1,3 +1,3 @@
 module DocusignRest
-  VERSION = "0.2.0.13"
+  VERSION = "0.2.0.14"
 end
