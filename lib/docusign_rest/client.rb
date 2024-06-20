@@ -104,10 +104,11 @@ module DocusignRest
       scopes = self.scopes.join(' ') if self.oauth_scopes.kind_of?(Array)
       expires_in = 3600 if expires_in > 3600
       now = Time.now.to_i
-      if defined?(self.user_id).empty?
-        user_id = self.default_user_id
-      else
+      user_id = self.default_user_id
+      Rails.logger.info("-----JWT--> 1 request_jwt_user_token user_id: #{user_id}")
+      if !defined?(self.user_id).empty?
         user_id = self.user_id
+        Rails.logger.info("-----JWT--> 2 request_jwt_user_token user_id: #{user_id}")
       end
       claim = {
         "iss" => self.integrator_key,
