@@ -23,6 +23,7 @@ module DocusignRest
 
       # Set up the DocuSign Authentication headers with the values passed from
       # our config block
+      @send_on_behalf_of_header = nil
       if self.auth_method == :oauth
         raise ArgumentError.new("A session record needs to be provided when using oauth") if self.session.nil?
         raise ArgumentError.new("The RSA private key file needs to be specified for oauth") if self.rsa_key_file.empty?
@@ -30,7 +31,11 @@ module DocusignRest
         raise ArgumentError.new('User ID cannot be empty')  if user_id.empty?
         raise ArgumentError.new("Session needs to be a ActiveRecord::SessionStore::Session") if !self.session.is_a?(ActiveRecord::SessionStore::Session)
         self.session = session
-        authentication['SendOnBehalfOf'] = options[:send_on_behalf_of] if options.include?(:send_on_behalf_of)
+        if options.include?(:send_on_behalf_of)
+          @send_on_behalf_of_header = {
+            'SendOnBehalfOf' => options[:send_on_behalf_of]
+          }
+        end
         # We check the token when the headers are generated for each request, see headers method
       elsif self.auth_method == :password
         authentication = {
@@ -217,6 +222,7 @@ module DocusignRest
 
       # For JWT oauth check token and refresh if required
       check_token if self.auth_method == :oauth
+      @docusign_authentication_headers.merge(@send_on_behalf_of_header) if @send_on_behalf_of_header
       @docusign_authentication_headers.merge(default)
     end
 
