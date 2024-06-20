@@ -224,6 +224,8 @@ module DocusignRest
       check_token if self.auth_method == :oauth
       @docusign_authentication_headers.merge(@send_on_behalf_of_header) if @send_on_behalf_of_header
       @docusign_authentication_headers.merge(default)
+      Rails.logger.info("-----JWT--> headers: #{@docusign_authentication_headers}")
+      @docusign_authentication_headers
     end
 
 
