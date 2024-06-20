@@ -24,10 +24,10 @@ module DocusignRest
       # Set up the DocuSign Authentication headers with the values passed from
       # our config block
       if self.auth_method == :oauth
-        raise ArgumentError.new("A session record needs to be provided when using oauth") if defined?(self.session).nil?
-        raise ArgumentError.new("The RSA private key file needs to be specified for oauth") if defined?(self.rsa_key_file).empty?
-        raise ArgumentError.new('Account ID cannot be empty')  if defined?(self.account_id).empty?
-        raise ArgumentError.new('Default User ID cannot be empty')  if defined?(self.default_user_id).empty?
+        raise ArgumentError.new("A session record needs to be provided when using oauth") if defined?(self.session).blank?
+        raise ArgumentError.new("The RSA private key file needs to be specified for oauth") if defined?(self.rsa_key_file).blank?
+        raise ArgumentError.new('Account ID cannot be empty')  if defined?(self.account_id).blank?
+        raise ArgumentError.new('Default User ID cannot be empty')  if defined?(self.default_user_id).blank?
         raise ArgumentError.new("Session needs to be a ActiveRecord::SessionStore::Session") if !self.session.is_a?(ActiveRecord::SessionStore::Session)
         self.session = session
         # We check the token when the headers are generated for each request, see headers method
@@ -96,9 +96,9 @@ module DocusignRest
     
     # Request JWT User Token
     def request_jwt_user_token(expires_in = 3600)
-      raise ArgumentError.new('account_id cannot be empty')  if defined?(self.account_id).empty?
-      raise ArgumentError.new('default_user_id cannot be empty')  if defined?(default_user_id).empty?
-      raise ArgumentError.new('rsa_key_file cannot be empty')  if defined?(self.rsa_key_file).empty?
+      raise ArgumentError.new('account_id cannot be empty')  if defined?(self.account_id).blank?
+      raise ArgumentError.new('default_user_id cannot be empty')  if defined?(default_user_id).blank?
+      raise ArgumentError.new('rsa_key_file cannot be empty')  if defined?(self.rsa_key_file).blank?
 
       scopes = self.oauth_scopes
       scopes = self.scopes.join(' ') if self.oauth_scopes.kind_of?(Array)
@@ -106,7 +106,7 @@ module DocusignRest
       now = Time.now.to_i
       user_id = self.default_user_id
       Rails.logger.info("-----JWT--> 1 request_jwt_user_token user_id: #{user_id}")
-      if !defined?(self.user_id).empty?
+      if !defined?(self.user_id).blank?
         user_id = self.user_id
         Rails.logger.info("-----JWT--> 2 request_jwt_user_token user_id: #{user_id}")
       end
