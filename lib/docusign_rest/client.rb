@@ -24,10 +24,10 @@ module DocusignRest
       # Set up the DocuSign Authentication headers with the values passed from
       # our config block
       if self.auth_method == :oauth
-        raise ArgumentError.new("A session record needs to be provided when using oauth") if self.session.nil?
-        raise ArgumentError.new("The RSA private key file needs to be specified for oauth") if self.rsa_key_file.empty?
-        raise ArgumentError.new('Account ID cannot be empty')  if account_id.empty?
-        raise ArgumentError.new('User ID cannot be empty')  if user_id.empty?
+        raise ArgumentError.new("A session record needs to be provided when using oauth") if defined?(self.session).nil?
+        raise ArgumentError.new("The RSA private key file needs to be specified for oauth") if defined?(self.rsa_key_file).empty?
+        raise ArgumentError.new('Account ID cannot be empty')  if defined?(self.account_id).empty?
+        raise ArgumentError.new('Default User ID cannot be empty')  if defined?(self.default_user_id).empty?
         raise ArgumentError.new("Session needs to be a ActiveRecord::SessionStore::Session") if !self.session.is_a?(ActiveRecord::SessionStore::Session)
         self.session = session
         # We check the token when the headers are generated for each request, see headers method
@@ -96,17 +96,22 @@ module DocusignRest
     
     # Request JWT User Token
     def request_jwt_user_token(expires_in = 3600)
-      raise ArgumentError.new('account_id cannot be empty')  if self.account_id.empty?
-      raise ArgumentError.new('default_user_id cannot be empty')  if self.default_user_id.empty?
-      raise ArgumentError.new('rsa_key_file cannot be empty')  if self.rsa_key_file.empty?
+      raise ArgumentError.new('account_id cannot be empty')  if defined?(self.account_id).empty?
+      raise ArgumentError.new('default_user_id cannot be empty')  if defined?(default_user_id).empty?
+      raise ArgumentError.new('rsa_key_file cannot be empty')  if defined?(self.rsa_key_file).empty?
 
       scopes = self.oauth_scopes
       scopes = self.scopes.join(' ') if self.oauth_scopes.kind_of?(Array)
       expires_in = 3600 if expires_in > 3600
       now = Time.now.to_i
+      if defined?(self.user_id).empty?
+        user_id = self.default_user_id
+      else
+        user_id = self.user_id
+      end
       claim = {
         "iss" => self.integrator_key,
-        "sub" => self.user_id || self.default_user_id,
+        "sub" => user_id,
         "aud" => self.oauth_base_url,
         "iat" => now,
         "exp" => now + expires_in,
