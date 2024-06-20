@@ -3,7 +3,7 @@ module DocusignRest
     VALID_CONNECTION_KEYS  = [:endpoint, :api_version, :user_agent, :method].freeze
     VALID_OPTIONS_KEYS     = [:access_token, :username, :password, :integrator_key,
                               :account_id, :format, :ca_file, :session, :user_id,
-                              :auth_method, :oauth_base_url, :oauth_scopes, :rsa_key_file].freeze
+                              :auth_method, :oauth_base_url, :oauth_scopes, :rsa_key_file, :default_user_id].freeze
     VALID_CONFIG_KEYS      = VALID_CONNECTION_KEYS + VALID_OPTIONS_KEYS
 
     DEFAULT_ENDPOINT       = 'https://demo.docusign.net/restapi'
@@ -15,6 +15,7 @@ module DocusignRest
     DEFAULT_SESSION        = nil
 
     DEFAULT_USER_ID        = nil
+    DEFAULT_DEFAULT_USER_ID= nil
     DEFAULT_USERNAME       = nil
     DEFAULT_PASSWORD       = nil
     DEFAULT_INTEGRATOR_KEY = nil
@@ -55,6 +56,7 @@ module DocusignRest
       self.session        = DEFAULT_SESSION
       self.auth_method    = DEFAULT_AUTH_METHOD
       self.rsa_key_file   = DEFAULT_RSA_KEY_FILE
+      self.default_user_id= DEFAULT_DEFAULT_USER_ID
     end
 
     # Allow configuration via a block

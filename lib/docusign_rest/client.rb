@@ -97,7 +97,7 @@ module DocusignRest
     # Request JWT User Token
     def request_jwt_user_token(expires_in = 3600)
       raise ArgumentError.new('account_id cannot be empty')  if self.account_id.empty?
-      raise ArgumentError.new('user_id cannot be empty')  if self.user_id.empty?
+      raise ArgumentError.new('default_user_id cannot be empty')  if self.default_user_id.empty?
       raise ArgumentError.new('rsa_key_file cannot be empty')  if self.rsa_key_file.empty?
 
       scopes = self.oauth_scopes
@@ -106,7 +106,7 @@ module DocusignRest
       now = Time.now.to_i
       claim = {
         "iss" => self.integrator_key,
-        "sub" => self.user_id,
+        "sub" => self.user_id || self.default_user_id,
         "aud" => self.oauth_base_url,
         "iat" => now,
         "exp" => now + expires_in,
