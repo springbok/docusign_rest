@@ -30,6 +30,7 @@ module DocusignRest
         raise ArgumentError.new('User ID cannot be empty')  if user_id.empty?
         raise ArgumentError.new("Session needs to be a ActiveRecord::SessionStore::Session") if !self.session.is_a?(ActiveRecord::SessionStore::Session)
         self.session = session
+        authentication['SendOnBehalfOf'] = options[:send_on_behalf_of] if options.include?(:send_on_behalf_of)
         # We check the token when the headers are generated for each request, see headers method
       elsif self.auth_method == :password
         authentication = {
